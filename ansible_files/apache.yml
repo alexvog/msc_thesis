@@ -1,0 +1,15 @@
+---
+- name: Install Apache Web Server on Rocky Linux
+  hosts: servers
+  become: true
+  tasks:
+    - name: Ensure the Apache package is installed
+      dnf:
+        name: httpd
+        state: present
+
+    - name: Start the Apache service
+      systemd:
+        name: httpd
+        state: started
+        enabled: yes

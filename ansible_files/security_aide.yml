@@ -1,0 +1,25 @@
+---
+- name: Install and Configure AIDE on Rocky Linux
+  hosts: servers
+  become: true
+
+  tasks:
+    - name: Ensure AIDE is installed
+      yum:
+        name: aide
+        state: present
+
+    - name: Add AIDE cron job as a separate file
+      copy:
+        dest: /etc/cron.d/aide
+        content: |
+          # Run daily AIDE check at 4 AM
+          0 4 * * * root /usr/sbin/aide --check
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Initialize AIDE database
+      command: aide --init
+
+    - name: Move AIDE database to active location
+      command: mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz

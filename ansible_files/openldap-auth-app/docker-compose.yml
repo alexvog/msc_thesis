@@ -1,0 +1,39 @@
+services:
+  openldap:
+    image: osixia/openldap
+    container_name: openldap
+    environment:
+      LDAP_ORGANISATION: "MyOrganization"
+      LDAP_DOMAIN: "myorganization.com"
+      LDAP_ADMIN_PASSWORD: "adminpassword"
+    networks:
+      - ldap-network
+    ports:
+      - "389:389"
+
+  phpldapadmin:
+    image: osixia/phpldapadmin
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+    networks:
+      - ldap-network
+    ports:
+      - "6443:443"
+
+  app:
+    build: .
+    container_name: ldap-auth-app
+    depends_on:
+      - openldap
+    networks:
+      - ldap-network
+    ports:
+      - "5000:5000"
+    environment:
+      LDAP_SERVER: "ldap://openldap:389"
+      LDAP_BASE_DN: "dc=myorganization,dc=com"
+
+networks:
+  ldap-network:
+    driver: bridge

@@ -1,0 +1,73 @@
+---
+- name: Install rsync on Ansible Controller
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Install rsync
+      yum:
+        name: rsync
+        state: present
+
+- name: Backup home directories and copy to central server
+  hosts: backup_targets
+  become: true
+  vars:
+    temp_backup_dir: "/tmp/backups"
+  tasks:
+    - name: Ensure tar is installed on target hosts
+      package:
+        name: tar
+        state: present
+
+    - name: Create a temporary backup directory on the target hosts
+      file:
+        path: "{{ temp_backup_dir }}/{{ inventory_hostname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Compress home directories on target hosts
+      command: >
+        tar czf {{ temp_backup_dir }}/{{ inventory_hostname }}/{{ inventory_hostname }}_home_backup_{{ ansible_date_time.iso8601 }}.tar.gz /home
+
+    - name: Fetch the backup archive to the controller
+      fetch:
+        src: "{{ temp_backup_dir }}/{{ inventory_hostname }}/{{ inventory_hostname }}_home_backup_{{ ansible_date_time.iso8601 }}.tar.gz"
+        dest: "{{ temp_backup_dir }}/{{ inventory_hostname }}/"
+        flat: yes
+
+    - name: Remove backup directory from target hosts after fetching
+      file:
+        path: "{{ temp_backup_dir }}"
+        state: absent
+
+- name: Copy backups from controller to central backup server
+  hosts: backup_server
+  vars:
+    central_backup_dir: "{{ ansible_env.HOME }}/backups"
+    temp_backup_dir: "/tmp/backups"
+  tasks:
+    - name: Ensure backup directory exists on central backup server
+      file:
+        path: "{{ central_backup_dir }}"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_gid }}"
+        mode: '0755'
+
+    - name: Copy backup archives from Ansible controller to central server
+      synchronize:
+        src: "{{ temp_backup_dir }}/"
+        dest: "{{ central_backup_dir }}/"
+        archive: yes
+        compress: yes
+        recursive: yes
+        delete: no
+      delegate_to: localhost
+
+    - name: Remove backup files from Ansible controller
+      file:
+        path: "{{ temp_backup_dir }}"
+        state: absent
+      delegate_to: localhost

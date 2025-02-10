@@ -1,0 +1,25 @@
+---
+- name: Deploy Checkmk raw container
+  hosts: checkmk_server
+  become: true
+  tasks:
+    - name: Pull Checkmk Docker image
+      community.docker.docker_image:
+        name: checkmk/check-mk-raw
+        tag: "2.3.0-latest"
+        source: pull
+
+    - name: Run Checkmk Docker container
+      community.docker.docker_container:
+        name: monitoring
+        image: checkmk/check-mk-raw:2.3.0-latest
+        state: started
+        restart_policy: always
+        ports:
+          - "8080:5000"
+          - "8000:8000"
+        volumes:
+          - "monitoring:/omd/sites"
+          - "/etc/localtime:/etc/localtime:ro"
+        tmpfs:
+          - "/opt/omd/sites/cmk/tmp:uid=1000,gid=1000"

@@ -1,0 +1,57 @@
+---
+- name: Install Checkmk Agent on Targets
+  hosts: checkmk_clients
+  become: true
+  vars:
+    checkmk_server: "{{ hostvars[groups['checkmk_server'][0]]['ansible_host'] }}"
+  tasks:
+    - name: Ensure required packages are installed
+      yum:
+        name: curl
+        state: present
+
+    - name: Fetch the agents webpage content
+      ansible.builtin.uri:
+        url: "http://{{ checkmk_server }}:8080/cmk/check_mk/agents/"
+        return_content: yes
+      register: webpage_content
+
+    - name: Extract the RPM link
+      ansible.builtin.shell: |
+        echo "{{ webpage_content.content }}" | grep -o 'check-mk-agent-[^">]*\.rpm' | uniq
+      register: rpm_link
+
+    - name: Download Checkmk Agent
+      ansible.builtin.get_url:
+        url: "http://{{ checkmk_server }}:8080/cmk/check_mk/agents/{{ rpm_link.stdout }}"
+        dest: "/tmp/{{ rpm_link.stdout }}"
+
+    - name: Install Checkmk Agent
+      yum:
+        name: "/tmp/{{ rpm_link.stdout }}"
+        state: present
+        disable_gpg_check: yes
+
+    - name: Verify Checkmk Agent service is running
+      ansible.builtin.shell: |
+        ss -tulpn | grep 6556
+      register: agent_status
+      failed_when: "'6556' not in agent_status.stdout"
+      changed_when: false
+
+    - name: Configure firewalld to allow Checkmk Agent port
+      firewalld:
+        port: "6556/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      when: ansible_facts['services']['firewalld.service']['status'] | default('not-found') != 'not-found'
+
+    - name: Reload firewalld to apply changes
+      command: firewall-cmd --reload
+      when: ansible_facts['services']['firewalld.service']['status'] | default('not-found') != 'not-found'
+
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "/tmp/{{ rpm_link.stdout }}"
+        state: absent

@@ -1,0 +1,100 @@
+---
+- name: Install Virtualmin on Rocky Linux
+  hosts: virtualmin_servers
+  become: true
+  vars:
+    fqdn: "rocky-vm.example.com"
+    vm_hostname: "rocky-vm"
+    webmin_user: "alex"
+    webmin_password: "password"
+
+  tasks:
+    - name: Set the hostname to a fully qualified domain name
+      hostname:
+        name: "{{ fqdn }}"
+
+    - name: Ensure /etc/hosts has an entry for the FQDN
+      lineinfile:
+        path: /etc/hosts
+        line: "127.0.0.1 {{ fqdn }} {{ vm_hostname }}"
+        create: yes
+        state: present
+
+    - name: Install required packages
+      yum:
+        name:
+          - wget
+          - perl
+          - curl
+        state: present
+
+    - name: Download Virtualmin installation script
+      get_url:
+        url: https://software.virtualmin.com/gpl/scripts/install.sh
+        dest: /tmp/install_virtualmin.sh
+        mode: '0755'
+
+    - name: Run Virtualmin installation script
+      shell: /tmp/install_virtualmin.sh --minimal -y
+      args:
+        creates: /etc/virtualmin-license
+
+    - name: Clean up Virtualmin installation script
+      file:
+        path: /tmp/install_virtualmin.sh
+        state: absent
+
+    - name: 'change from plain text passwords to hashed passwords'
+      lineinfile:
+        dest: "/etc/webmin/virtual-server/config"
+        regexp: "^hashpass=0"
+        line: "hashpass=1"
+
+    - name: 'update bind_master setting'
+      lineinfile:
+        dest: "/etc/webmin/virtual-server/config"
+        regexp: "^bind_master="
+        line: "bind_master={{ fqdn }}"
+
+    - name: 'add some lines to /etc/webmin/virtual-server/config'
+      lineinfile:
+        path: /etc/webmin/virtual-server/config
+        line: '{{ item }}'
+      with_items:
+        - allow_symlinks=0
+        - mysql_user_size=80
+        - mysql_size=huge
+        - avail_virtualmin-dav=0
+        - wizard_run=1
+
+    - name: Add the user entry to miniserv.users
+      lineinfile:
+        path: /etc/webmin/miniserv.users
+        line: "{{ webmin_user }}:12ZVLjpihs:0"
+        create: yes
+        state: present
+
+    - name: Add the user privileges to webmin.acl
+      lineinfile:
+        path: /etc/webmin/webmin.acl
+        line: "{{ webmin_user }}: acl adsl-client apache at backup-config bacula-backup bandwidth bind8 change-user cluster-copy cluster-cron cluster-passwd cluster-shell cluster-software cluster-useradmin cluster-usermin cluster-webmin cpan cron custom dfsadmin dhcpd dovecot exim exports fail2ban fdisk fetchmail filemin filter firewall firewall6 firewalld fsdump heartbeat htaccess-htpasswd idmapd inetd init inittab ipfilter ipfw ipsec iscsi-client iscsi-server iscsi-target iscsi-tgtd krb5 ldap-client ldap-server ldap-useradmin logrotate logviewer lpadmin lvm mailboxes mailcap man mount mysql net nis openslp package-updates pam pap passwd phpini postfix postgresql ppp-client pptp-client pptp-server proc procmail proftpd qmailadmin quota raid samba sarg sendmail servers shell shorewall shorewall6 smart-status smf software spam squid sshd status stunnel syslog-ng syslog system-status tcpwrappers time tunnel updown useradmin usermin webalizer webmin webmincron webminlog xinetd xterm virtual-server virtualmin-awstats virtualmin-htpasswd ruby-gems php-pear jailkit"
+        create: yes
+        state: present
+
+    - name: Change the password for the new user
+      command:
+        cmd: "/usr/libexec/webmin/changepass.pl /etc/webmin {{ webmin_user }} {{ webmin_password }}"
+
+    - name: Restart Webmin service
+      systemd:
+        name: webmin
+        state: restarted
+
+    - name: Start and enable Virtualmin and Webmin services
+      service:
+        name: webmin
+        state: started
+        enabled: true
+
+    - name: Reboot the server
+      reboot:

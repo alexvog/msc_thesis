@@ -1,0 +1,15 @@
+---
+- name: Deploy LDAP Authentication Application
+  hosts: openldap_server
+  become: yes
+
+  tasks:
+    - name: Copy application files to remote server
+      copy:
+        src: ./openldap-auth-app/
+        dest: /root/openldap-auth-app/
+
+    - name: Build and start the application with Docker Compose
+      command: docker compose --project-directory /root/openldap-auth-app/ up --build -d
+      args:
+        chdir: /root/openldap-auth-app/

@@ -1,0 +1,46 @@
+---
+- name: Set up firewall on Rocky Linux
+  hosts: servers
+  become: true
+  tasks:
+
+    - name: Install firewalld
+      yum:
+        name: firewalld
+        state: latest
+
+    - name: Enable and start firewalld
+      systemd:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Set default zone to public
+      firewalld:
+        zone: public
+        state: enabled
+        permanent: yes
+
+    - name: Allow outgoing traffic (default is allowed by firewalld)
+      firewalld:
+        immediate: yes
+        state: enabled
+
+    - name: Deny all incoming traffic
+      firewalld:
+        zone: public
+        service: any
+        state: disabled
+        permanent: yes
+
+    - name: Allow incoming SSH on port 22
+      firewalld:
+        zone: public
+        port: 22/tcp
+        state: enabled
+        permanent: yes
+
+    - name: Reload firewalld to apply changes
+      service:
+        name: firewalld
+        state: reloaded

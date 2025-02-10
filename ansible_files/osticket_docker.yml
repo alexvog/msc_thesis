@@ -1,0 +1,26 @@
+---
+- name: Deploy osticket and MySQL containers
+  hosts: osticket_servers
+  tasks:
+    - name: Run MySQL container
+      community.docker.docker_container:
+        name: osticket_mysql
+        image: mysql:5
+        state: started
+        restart_policy: always
+        env:
+          MYSQL_ROOT_PASSWORD: "secret"
+          MYSQL_USER: "osticket"
+          MYSQL_PASSWORD: "secret"
+          MYSQL_DATABASE: "osticket"
+
+    - name: Run osticket container
+      community.docker.docker_container:
+        name: osticket
+        image: devinsolutions/osticket
+        state: started
+        restart_policy: always
+        published_ports:
+          - "8080:80"
+        links:
+          - "osticket_mysql:mysql"

@@ -1,0 +1,28 @@
+servers]
+test-vm-1 ansible_host=192.168.122.51
+test-vm-2 ansible_host=192.168.122.52
+
+[docker-servers]
+test-vm-1 ansible_host=192.168.122.51
+
+[backup_server]
+test-vm-1 ansible_host=192.168.122.51
+
+[backup_targets]
+test-vm-1 ansible_host=192.168.122.51
+test-vm-2 ansible_host=192.168.122.52
+
+[virtualmin_servers]
+test-vm-1 ansible_host=192.168.122.51
+
+[osticket_servers]
+test-vm-1 ansible_host=192.168.122.51
+
+[checkmk_server]
+test-vm-1 ansible_host=192.168.122.51
+
+[checkmk_clients]
+test-vm-2 ansible_host=192.168.122.52
+
+[openldap_server]
+test-vm-1 ansible_host=192.168.122.51

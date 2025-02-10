@@ -1,0 +1,41 @@
+---
+- name: Apply security configuration
+  hosts: servers
+  become: true
+
+  tasks:
+    - name: Disable IPv6
+      sysctl:
+        name: net.ipv6.conf.all.disable_ipv6
+        value: 1
+        state: present
+
+    - name: Disable IPv6 for default interface
+      sysctl:
+        name: net.ipv6.conf.default.disable_ipv6
+        value: 1
+        state: present
+
+    - name: Protect against SYN flood attacks
+      sysctl:
+        name: net.ipv4.tcp_syncookies
+        value: 1
+        state: present
+
+    - name: Restrict core dumps
+      sysctl:
+        name: fs.suid_dumpable
+        value: 0
+        state: present
+
+    - name: Use PID in core dump file names
+      sysctl:
+        name: kernel.core_uses_pid
+        value: 1
+        state: present
+
+    - name: Reboot the machine soon after a kernel panic
+      sysctl:
+        name: kernel.panic
+        value: 10
+        state: present

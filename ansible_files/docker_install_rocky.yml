@@ -1,0 +1,38 @@
+---
+- name: Install Docker on Rocky Linux
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Ensure dnf-plugins-core is installed
+      dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Add Docker repository
+      command: dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+      args:
+        creates: /etc/yum.repos.d/docker-ce.repo
+
+    - name: Install Docker packages
+      dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+          - python3-pip
+        state: present
+
+    - name: Ensure requests Python package is installed
+      pip:
+        name: requests==2.31.0
+        state: present
+        executable: pip3
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
